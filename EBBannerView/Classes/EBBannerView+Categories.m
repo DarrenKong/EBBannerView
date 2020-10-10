@@ -64,7 +64,12 @@
 @implementation UIImage (EBBannerViewCategory)
 
 +(UIColor *)colorAtPoint:(CGPoint)point{
-    UIWindow *screenWindow = [[UIApplication sharedApplication] keyWindow];
+    UIWindow *screenWindow = nil;
+    if ([[UIApplication sharedApplication].delegate respondsToSelector:@selector(window)]) {
+        screenWindow = [[UIApplication sharedApplication].delegate window];
+    } else {
+        screenWindow = [UIApplication sharedApplication].windows.firstObject;
+    }
     UIGraphicsBeginImageContext(screenWindow.frame.size);//全屏截图，包括window
     [screenWindow.layer renderInContext:UIGraphicsGetCurrentContext()];
     UIImage *viewImage = UIGraphicsGetImageFromCurrentImageContext();

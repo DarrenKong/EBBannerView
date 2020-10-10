@@ -248,8 +248,16 @@ static EBBannerWindow *sharedWindow;
 
 -(BOOL)isiPhoneX{
     if (@available(iOS 11.0, *)) {
-        return UIApplication.sharedApplication.keyWindow.safeAreaInsets.bottom > 0;
-//        return UIApplication.sharedApplication.delegate.window.safeAreaInsets.bottom > 0;
+        UIWindow *mainWindown = nil;
+        if ([[UIApplication sharedApplication].delegate respondsToSelector:@selector(window)]) {
+            mainWindown = [[UIApplication sharedApplication].delegate window];
+        } else {
+            mainWindown = [UIApplication sharedApplication].windows.firstObject;
+        }
+        if (mainWindown.safeAreaInsets.bottom > 0.0) {
+            return YES;
+        }
+        return NO;
     } else {
         return NO;
     }

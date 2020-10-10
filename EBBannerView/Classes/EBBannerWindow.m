@@ -21,7 +21,7 @@ static EBEmptyWindow *emptyWindow;
     dispatch_once(&onceToken, ^{
         SEL sel = @selector(initWithWindowScene:);
         if ([EBBannerWindow.new respondsToSelector:sel]) {
-            id obj = [UIApplication.sharedApplication.keyWindow valueForKey:@"windowScene"];
+            id obj = [[EBBannerWindow keyWindow] valueForKey:@"windowScene"];
             #pragma clang diagnostic push
             #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
             sharedWindow = [[EBBannerWindow alloc] performSelector:sel withObject:obj];
@@ -32,7 +32,7 @@ static EBEmptyWindow *emptyWindow;
         }
         sharedWindow.windowLevel = UIWindowLevelAlert;
         sharedWindow.layer.masksToBounds = NO;
-        UIWindow *originKeyWindow = UIApplication.sharedApplication.keyWindow;
+        UIWindow *originKeyWindow = [EBBannerWindow keyWindow];
         [sharedWindow makeKeyAndVisible];
         
         /* fix bug:
@@ -76,7 +76,7 @@ static EBEmptyWindow *emptyWindow;
         return [view hitTest:point1 withEvent:event];
     } else {
         if (@available(iOS 13.0, *)) {
-            return [UIApplication.sharedApplication.keyWindow hitTest:point withEvent:event];
+            return [[EBBannerWindow keyWindow] hitTest:point withEvent:event];
         } else {
             return [super hitTest:point withEvent:event];
         }
@@ -95,6 +95,22 @@ static EBEmptyWindow *emptyWindow;
     } else {
         [self removeObserver:self forKeyPath:@"frame"];
     }
+}
+
++ (UIWindow *)keyWindow {
+    UIWindow* foundWindow = nil;
+    if (@available(iOS 13.0, *)) {
+        NSArray *windows = [[UIApplication sharedApplication] windows];
+        for (UIWindow *window in windows) {
+            if (window.isKeyWindow) {
+                foundWindow = window;
+                break;
+            }
+        }
+    } else {
+        foundWindow = [[UIApplication sharedApplication] keyWindow];
+    }
+    return foundWindow;
 }
 
 @end
