@@ -12,4 +12,7 @@
 
 +(instancetype)sharedWindow;
 
+- (void)show;
+- (void)hide;
+
 @end

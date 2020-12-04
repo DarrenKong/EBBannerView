@@ -11,6 +11,10 @@
 #import "EBBannerView+Categories.h"
 #import "EBEmptyWindow.h"
 
+@interface EBBannerWindow ()
+
+@end
+
 @implementation EBBannerWindow
 
 static EBBannerWindow *sharedWindow;
@@ -21,7 +25,7 @@ static EBEmptyWindow *emptyWindow;
     dispatch_once(&onceToken, ^{
         SEL sel = @selector(initWithWindowScene:);
         if ([EBBannerWindow.new respondsToSelector:sel]) {
-            id obj = [[EBBannerWindow keyWindow] valueForKey:@"windowScene"];
+            id obj = [UIApplication.sharedApplication.keyWindow valueForKey:@"windowScene"];
             #pragma clang diagnostic push
             #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
             sharedWindow = [[EBBannerWindow alloc] performSelector:sel withObject:obj];
@@ -32,7 +36,7 @@ static EBEmptyWindow *emptyWindow;
         }
         sharedWindow.windowLevel = UIWindowLevelAlert;
         sharedWindow.layer.masksToBounds = NO;
-        UIWindow *originKeyWindow = [EBBannerWindow keyWindow];
+        UIWindow *originKeyWindow = UIApplication.sharedApplication.keyWindow;
         [sharedWindow makeKeyAndVisible];
         
         /* fix bug:
@@ -47,11 +51,6 @@ static EBEmptyWindow *emptyWindow;
         
         [EBBannerViewController setSupportedInterfaceOrientations:UIInterfaceOrientationMaskPortrait | UIInterfaceOrientationMaskLandscape];
         [EBBannerViewController setStatusBarHidden:NO];
-        
-        EBBannerViewController *vc = [EBBannerViewController new];
-        vc.view.backgroundColor = [UIColor clearColor];
-        vc.view.frame = CGRectMake(0, 0, ScreenWidth, ScreenHeight);
-        sharedWindow.rootViewController = vc;
     });
     return sharedWindow;
 }
@@ -62,6 +61,34 @@ static EBEmptyWindow *emptyWindow;
         [self addObserver:self forKeyPath:@"frame" options:NSKeyValueObservingOptionNew|NSKeyValueObservingOptionOld context:nil];
     }
     return self;
+}
+
+- (void)show {
+    EBBannerViewController *vc = [EBBannerViewController new];
+    vc.view.backgroundColor = [UIColor clearColor];
+    vc.view.frame = CGRectMake(0, 0, ScreenWidth, ScreenHeight);
+    [self setRootVc:vc];
+    
+    emptyWindow.hidden = NO;
+    self.hidden = NO;
+}
+
+- (void)hide {
+    if (self.rootViewController.presentedViewController) {
+        [self.rootViewController.presentedViewController dismissViewControllerAnimated:NO completion:nil];
+    }
+    [self setRootVc:nil];
+    
+    emptyWindow.hidden = YES;
+    self.hidden = YES;
+}
+
+- (void)setRootVc:(UIViewController *)rootVc {
+    if (rootVc) {
+        self.rootViewController = rootVc;
+    } else {
+        self.rootViewController = nil;
+    }
 }
 
 -(UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event{
@@ -76,12 +103,16 @@ static EBEmptyWindow *emptyWindow;
         return [view hitTest:point1 withEvent:event];
     } else {
         if (@available(iOS 13.0, *)) {
-            if (UIApplication.sharedApplication.windows.count > 0) {
-                UIWindow *window = UIApplication.sharedApplication.windows[0];
-                if (window.isKeyWindow) {
-                    return [window hitTest:point withEvent:event];
+            NSEnumerator *frontToBackWindows = [UIApplication.sharedApplication.windows reverseObjectEnumerator];
+                for (UIWindow *window in frontToBackWindows) {
+                    BOOL windowOnMainScreen = window.screen == UIScreen.mainScreen;
+                    BOOL windowIsVisible = !window.hidden && window.alpha > 0;
+                    BOOL windowLevelNormal = window.windowLevel == UIWindowLevelNormal;
+                    if (windowOnMainScreen && windowIsVisible && windowLevelNormal) {
+                        return [window hitTest:point withEvent:event];
+                        break;
+                    }
                 }
-            }
             //iOS13以后，keyWindow不再是最开始创建的window，而是当前显示的window，这么写会造成某些场景死循环。
 //            return [UIApplication.sharedApplication.keyWindow hitTest:point withEvent:event];
         }
@@ -101,22 +132,6 @@ static EBEmptyWindow *emptyWindow;
     } else {
         [self removeObserver:self forKeyPath:@"frame"];
     }
-}
-
-+ (UIWindow *)keyWindow {
-    UIWindow* foundWindow = nil;
-    if (@available(iOS 13.0, *)) {
-        NSArray *windows = [[UIApplication sharedApplication] windows];
-        for (UIWindow *window in windows) {
-            if (window.isKeyWindow) {
-                foundWindow = window;
-                break;
-            }
-        }
-    } else {
-        foundWindow = [[UIApplication sharedApplication] keyWindow];
-    }
-    return foundWindow;
 }
 
 @end
